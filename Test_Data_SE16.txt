@@ -1,0 +1,134 @@
+========================================================
+  SAMPLE TEST DATA — ZINV_VALIDATION
+  Insert via Transaction: SE16 or run ZLOAD_INV_TEST_DATA in SE38
+  Author: Harsh Raj | Roll: 2330162 | B.Tech-ECSc. 2023-2027
+========================================================
+
+HOW TO INSERT DATA:
+  Option A — SE38 Loader:
+    1. Open SE38
+    2. Create program ZLOAD_INV_TEST_DATA
+    3. Paste the loader code from the ABAP file (Section 2)
+    4. Execute (F8) — all 5 records inserted automatically
+
+  Option B — SE16 Manual Entry:
+    1. Open SE16
+    2. Table Name: ZINV_VALIDATION → Press Enter
+    3. Click the "Create Entry" button (pencil icon)
+    4. Enter each row below one by one
+    5. Save after each entry
+
+--------------------------------------------------------
+RECORD 1 — Expected Status: VALID
+--------------------------------------------------------
+  INV_ID     : INV001
+  VENDOR_ID  : VEND_001
+  PO_ID      : PO_2024_001
+  MATERIAL   : Office Chairs
+  PO_QTY     : 100
+  GR_QTY     : 100
+  INV_QTY    : 100
+  PO_PRICE   : 500.00
+  INV_PRICE  : 500.00
+  STATUS     : PENDING
+  MESSAGE    : Awaiting validation
+  CURRENCY   : INR
+  CREATED_ON : (today's date)
+
+  Why VALID: All 3 quantities match AND price equals PO price.
+             Invoice cleared for FI posting.
+
+--------------------------------------------------------
+RECORD 2 — Expected Status: BLOCKED
+--------------------------------------------------------
+  INV_ID     : INV002
+  VENDOR_ID  : VEND_002
+  PO_ID      : PO_2024_002
+  MATERIAL   : Laptop Computers
+  PO_QTY     : 50
+  GR_QTY     : 30
+  INV_QTY    : 50
+  PO_PRICE   : 45000.00
+  INV_PRICE  : 45000.00
+  STATUS     : PENDING
+  MESSAGE    : Awaiting validation
+  CURRENCY   : INR
+  CREATED_ON : (today's date)
+
+  Why BLOCKED: Invoice qty (50) > GR qty (30).
+               Vendor billing for 20 units never received. Payment blocked.
+
+--------------------------------------------------------
+RECORD 3 — Expected Status: WARNING
+--------------------------------------------------------
+  INV_ID     : INV003
+  VENDOR_ID  : VEND_001
+  PO_ID      : PO_2024_003
+  MATERIAL   : Printer Cartridges
+  PO_QTY     : 200
+  GR_QTY     : 200
+  INV_QTY    : 200
+  PO_PRICE   : 150.00
+  INV_PRICE  : 175.00
+  STATUS     : PENDING
+  MESSAGE    : Awaiting validation
+  CURRENCY   : INR
+  CREATED_ON : (today's date)
+
+  Why WARNING: Quantities match but INV_PRICE (175) != PO_PRICE (150).
+               Excess of INR 25/unit flagged for AP review.
+               Total excess = INR 25 x 200 = INR 5,000.
+
+--------------------------------------------------------
+RECORD 4 — Expected Status: BLOCKED
+--------------------------------------------------------
+  INV_ID     : INV004
+  VENDOR_ID  : VEND_003
+  PO_ID      : PO_2024_004
+  MATERIAL   : Server Hardware
+  PO_QTY     : 5
+  GR_QTY     : 0
+  INV_QTY    : 5
+  PO_PRICE   : 200000.00
+  INV_PRICE  : 200000.00
+  STATUS     : PENDING
+  MESSAGE    : Awaiting validation
+  CURRENCY   : INR
+  CREATED_ON : (today's date)
+
+  Why BLOCKED: GR qty = 0. Goods never delivered/received.
+               Cannot process payment without confirmed delivery.
+
+--------------------------------------------------------
+RECORD 5 — Expected Status: VALID
+--------------------------------------------------------
+  INV_ID     : INV005
+  VENDOR_ID  : VEND_002
+  PO_ID      : PO_2024_005
+  MATERIAL   : Network Switches
+  PO_QTY     : 20
+  GR_QTY     : 15
+  INV_QTY    : 15
+  PO_PRICE   : 8000.00
+  INV_PRICE  : 8000.00
+  STATUS     : PENDING
+  MESSAGE    : Awaiting validation
+  CURRENCY   : INR
+  CREATED_ON : (today's date)
+
+  Why VALID: Partial delivery scenario. GR qty = 15 (partial of PO 20).
+             Invoice correctly raised for 15 units only. Validated successfully.
+
+========================================================
+  TEST CASES TO RUN IN SE38
+  Execute: ZSMART_INVOICE_VALIDATION
+========================================================
+
+  Test 1: Run with default range (INV001-INV010) → All 5 records shown
+  Test 2: Filter p_status = 'BLOCKED' → INV002 and INV004 shown only
+  Test 3: Filter p_status = 'WARNING' → INV003 shown only
+  Test 4: Filter p_status = 'VALID'   → INV001 and INV005 shown only
+  Test 5: Enter s_invid = INV999      → "No records found" warning message
+  Test 6: Filter by s_vendor = VEND_001 → INV001 and INV003 shown only
+
+========================================================
