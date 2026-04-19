@@ -188,24 +188,28 @@ Technical Settings: Data Class = APPL0, Size Category = 0
 Activate (Ctrl+F3)
 ```
 
-### Step 2 — Load Test Data (SE38)
-
-```
-SE38 → Create program: ZLOAD_INV_TEST_DATA
-Paste Section 2 from ABAP_Code/ZSMART_INVOICE_VALIDATION.abap
-Activate → Execute (F8)
-Expected output: "Test data loaded successfully. Records: 5"
-```
-
-Alternatively, insert records manually via **SE16** using `Sample_Data/Test_Data_SE16.txt`.
-
-### Step 3 — Run the Main Program (SE38)
+### Step 2 — Create the Main Program (SE38)
 
 ```
 SE38 → Create program: ZSMART_INVOICE_VALIDATION
-Paste Section 3 from ABAP_Code/ZSMART_INVOICE_VALIDATION.abap
-Activate (Ctrl+F3) → Execute (F8)
+Paste the ENTIRE file: ABAP_Code/ZSMART_INVOICE_VALIDATION.abap
+Activate (Ctrl+F3)
 ```
+
+### Step 3 — Load Test Data + Run (first run only)
+
+On the selection screen you will see a checkbox at the bottom:
+
+```
+☑ Load test data into ZINV_VALIDATION (first run only)
+```
+
+| Run | Checkbox | What happens |
+|-----|----------|-------------|
+| First time | ☑ Ticked | Inserts all 5 records, then validates and shows ALV |
+| Every run after | ☐ Unticked | Validates and shows ALV directly |
+
+> Alternatively, insert records manually via **SE16** using `Sample_Data/Test_Data_SE16.txt`.
 
 ### Step 4 — Test the Scenarios
 
@@ -228,8 +232,9 @@ SmartInvoiceValidation/
 ├── ABAP_Code/
 │   └── ZSMART_INVOICE_VALIDATION.abap
 │       ├── Section 1 — ZINV_VALIDATION table definition (SE11 reference)
-│       ├── Section 2 — Test data loader (ZLOAD_INV_TEST_DATA)
-│       └── Section 3 — Main validation program
+│       ├── Section 2 — Test scenario descriptions (comments)
+│       └── Section 3 — Main program: FETCH_DATA, VALIDATE_DATA,
+│                        DISPLAY_ALV, LOAD_TEST_DATA (all in one)
 │
 ├── Sample_Data/
 │   └── Test_Data_SE16.txt            ← Manual SE16 insertion guide + all 5 records
