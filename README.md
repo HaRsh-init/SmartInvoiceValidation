@@ -1,245 +1,263 @@
-# Smart Invoice Validation System
-**Simulated SAP Procure-to-Pay (P2P) Environment**
+# 🧾 Smart Invoice Validation System
 
-**Submitted By:**
-- **Name:** Harsh Raj
-- **Roll Number:** 2330162
-- **Program:** B.Tech — Electronics & Computer Science (ECSc.)
-- **Batch:** 2023–2027
-- **Course:** SAP ABAP Development Training
+> An automated **3-way invoice matching system** built in SAP ABAP that validates vendor invoices against Purchase Orders and Goods Receipts — preventing overpayments, price inflation, and payments without delivery confirmation.
 
-## Table of Contents
-1. [Problem Statement](#1-problem-statement)
-2. [Solution & Features](#2-solution--features)
-3. [Technical Stack](#3-technical-stack)
-4. [Implementation Steps](#4-implementation-steps)
-5. [ABAP Program Code](#5-abap-program-code)
-6. [Database Table Definition](#6-database-table-definition)
-7. [Test Cases & Expected Output](#7-test-cases--expected-output)
-8. [Unique Points](#8-unique-points)
-9. [Future Improvements](#9-future-improvements)
+![ABAP](https://img.shields.io/badge/Language-ABAP-0077CC?style=flat-square&logo=sap&logoColor=white)
+![SAP](https://img.shields.io/badge/Platform-SAP%20S%2F4HANA-1A9C3E?style=flat-square&logo=sap&logoColor=white)
+![ALV](https://img.shields.io/badge/UI-CL__SALV__TABLE-6C3FC4?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Complete-2ea043?style=flat-square)
 
-## 1. Problem Statement
-In enterprise procurement, invoice processing errors are a leading cause of financial leakage and audit failures. Traditional manual invoice verification is time-consuming, error-prone, and does not scale with business volume. Organizations using SAP ERP routinely face three critical failure modes:
+---
+
+## 📋 Table of Contents
+
+- [Overview](#-overview)
+- [Problem Statement](#-problem-statement)
+- [How It Works](#-how-it-works)
+- [Tech Stack](#-tech-stack)
+- [Database Table](#-database-table--zinv_validation)
+- [Program Structure](#-program-structure)
+- [Test Cases](#-test-cases)
+- [Getting Started](#-getting-started)
+- [Project Structure](#-project-structure)
+- [Future Improvements](#-future-improvements)
+
+---
+
+## 🌐 Overview
+
+This project simulates the **SAP Procure-to-Pay (P2P)** cycle using a custom Z-table and an ABAP executable program. It replicates the core invoice validation logic used in real SAP MM-FI environments — without requiring access to production SAP tables.
+
+| SAP Table (Real) | Simulated By | Data Represented |
+|------------------|--------------|-----------------|
+| `EKKO` / `EKPO` | `ZINV_VALIDATION` | Purchase Order Header & Items |
+| `MSEG` | `ZINV_VALIDATION` | Goods Receipt Quantities |
+| `RBKP` / `RSEG` | `ZINV_VALIDATION` | Invoice Header & Line Items |
+
+---
+
+## ❗ Problem Statement
+
+Manual invoice processing in enterprise procurement leads to three critical failure modes:
 
 | Issue | Business Impact |
-| :--- | :--- |
-| Vendor invoices quantities exceeding received goods | Overpayment to vendors |
-| Invoice prices higher than agreed PO price | Undetected cost inflation |
-| Invoices raised before Goods Receipt is posted | Payment without delivery confirmation |
+|-------|----------------|
+| Invoice quantity exceeds goods received | Overpayment to vendors |
+| Invoice price higher than agreed PO price | Undetected cost inflation |
+| Invoice raised before Goods Receipt is posted | Payment without delivery confirmation |
 
-This project addresses all three failure modes through an automated, rule-based validation system implemented in ABAP, simulating the SAP 3-way matching process (Purchase Order → Goods Receipt → Invoice).
+This system automates all three checks through a rule-based validation engine before any FI posting occurs.
 
-## 2. Solution & Features
+---
 
-### 2.1 System Architecture
-The system uses a custom Z-table (`ZINV_VALIDATION`) to simulate the SAP tables involved in a real P2P cycle. This approach represents a simulated SAP environment and mimics MM-FI integration without requiring access to production SAP tables.
+## ⚙️ How It Works
 
-| SAP Table (Real) | Z-Table Simulation | Data Represented |
-| :--- | :--- | :--- |
-| EKKO / EKPO | ZINV_VALIDATION | Purchase Order Header & Items |
-| MSEG | ZINV_VALIDATION | Goods Receipt Quantities |
-| RBKP / RSEG | ZINV_VALIDATION | Invoice Header & Line Items |
-
-### 2.2 Core Validation Logic (3-Way Matching)
-The program implements a custom validation layer before FI posting using multi-condition ABAP logic. The logic is evaluated in priority order:
-- `IF gr_qty = 0` → STATUS = 'BLOCKED' (No Goods Receipt found)
-- `ELSEIF inv_qty > gr_qty` → STATUS = 'BLOCKED' (Qty overbilled)
-- `ELSEIF inv_price ≠ po_price` → STATUS = 'WARNING' (Price mismatch)
-- `ELSE` → STATUS = 'VALID' (OK for FI posting)
-
-### 2.3 Program Modules
-| Module | Transaction | Purpose |
-| :--- | :--- | :--- |
-| FETCH_DATA | SELECT from ZINV_VALIDATION | Retrieves invoices based on selection screen filters |
-| VALIDATE_DATA | Internal ABAP logic | Applies 3-way match rules; computes qty/price differences |
-| DISPLAY_ALV | CL_SALV_TABLE | Renders results in interactive ALV grid with Excel export |
-
-### 2.4 Key Features
-- **Selection Screen:** Filter by Invoice ID range, Vendor ID, PO Number, and Status
-- **3-Way Matching:** Validates quantity and price simultaneously across PO, GR, Invoice
-- **Smart Calculations:** Auto-computes Quantity Difference and Price Difference per record
-- **Status Indicators:** VALID (green), WARNING (yellow), BLOCKED (red) for quick review
-- **ALV Grid Output:** Built using CL_SALV_TABLE with column optimization and striped rows
-- **Excel Download:** Full export capability via ALV toolbar standard functions
-- **Layout Save:** Users can save and restore preferred ALV layouts
-
-## 3. Technical Stack
-| Component | Technology / Tool |
-| :--- | :--- |
-| Programming Language | ABAP (Advanced Business Application Programming) |
-| Platform | SAP NetWeaver / SAP S/4HANA (Simulated Environment) |
-| UI Framework | CL_SALV_TABLE — Object-Oriented ALV Grid |
-| Database Table | ZINV_VALIDATION (Custom Z-Table) |
-| Development Tools | SE11 (Table), SE38 (Program), SE16 (Data Browser) |
-| Data Insertion | SM30 / Custom ABAP loader program |
-| Export Format | Excel (.xlsx) via ALV built-in function |
-
-## 4. Implementation Steps
-
-**Step 1 — Database Table Creation (SE11)**
-A custom transparent table `ZINV_VALIDATION` was created in transaction SE11 with fields for INV_ID, VENDOR_ID, PO_NUMBER, PO_QTY, GR_QTY, INV_QTY, PO_PRICE, INV_PRICE, QTY_DIFF, PRICE_DIFF, and STATUS. The table was activated with Data Class APPL0 and made available for maintenance via SM30.
-
-**Step 2 — Test Data Entry (SE16 / SM30)**
-Five sample invoice records (INV001 to INV005) were inserted covering all validation scenarios: VALID, BLOCKED (qty overbilling), WARNING (price mismatch), BLOCKED (no GR), and VALID (partial delivery). This ensures complete branch coverage of the validation logic.
-
-**Step 3 — ABAP Program Development (SE38)**
-The main executable program `ZINV_VALIDATION_CHECK` was created in SE38. It is structured into three modular FORMs:
-- **FETCH_DATA** — Executes SELECT query on ZINV_VALIDATION based on selection screen filters
-- **VALIDATE_DATA** — Applies 3-way matching rules in priority order; computes QTY_DIFF and PRICE_DIFF fields dynamically
-- **DISPLAY_ALV** — Renders output using CL_SALV_TABLE with column optimization, striped rows, and all toolbar functions enabled
-
-**Step 4 — Testing and Validation**
-The program was tested against all five test scenarios including valid matches, quantity overbilling, price inflation, missing goods receipts, and partial deliveries to ensure correct status assignment and error handling.
-
-## 5. ABAP Program Code
-**Program Name:** ZINV_VALIDATION_CHECK | **Transaction:** SE38
+### Validation Logic — 3-Way Matching
 
 ```abap
-REPORT zinv_validation_check.
-TABLES: zinv_validation.
+IF gr_qty = 0                        "No Goods Receipt posted
+  → STATUS = 'BLOCKED'
 
-TYPES: BEGIN OF ty_invoice,
-v_id TYPE char10,
-vendor_id TYPE char10,
-po_number TYPE char10,
-po_qty TYPE i,
-gr_qty TYPE i,
-v_qty TYPE i,
-po_price TYPE p DECIMALS 2,
-v_price TYPE p DECIMALS 2,
-qty_diff TYPE i,
-price_diff TYPE p DECIMALS 2,
-status TYPE char10,
-END OF ty_invoice.
+ELSEIF inv_qty > gr_qty              "Invoice overbills received qty
+  → STATUS = 'BLOCKED'
 
-DATA: it_invoice TYPE TABLE OF ty_invoice,
-wa_invoice TYPE ty_invoice.
+ELSEIF inv_price <> po_price         "Price differs from PO agreement
+  → STATUS = 'WARNING'
 
-DATA: lo_alv TYPE REF TO cl_salv_table,
-lo_columns TYPE REF TO cl_salv_columns_table,
-lo_display TYPE REF TO cl_salv_display_settings,
-lo_functions TYPE REF TO cl_salv_functions_list,
-lx_msg TYPE REF TO cx_salv_msg.
-
-SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
-SELECT-OPTIONS: s_invid FOR zinv_validation-inv_id,
-s_vendor FOR zinv_validation-vendor_id,
-s_po FOR zinv_validation-po_number.
-PARAMETERS: p_status TYPE char10.
-SELECTION-SCREEN END OF BLOCK b1.
-
-INITIALIZATION.
-TEXT-001 = 'Smart Invoice Validation - Search Parameters'.
-
-START-OF-SELECTION.
-PERFORM fetch_data.
-PERFORM validate_data.
-PERFORM display_alv.
-
-FORM fetch_data.
-SELECT inv_id vendor_id po_number po_qty gr_qty inv_qty po_price inv_price status
-FROM zinv_validation
-INTO CORRESPONDING FIELDS OF TABLE it_invoice
-WHERE inv_id IN s_invid
-AND vendor_id IN s_vendor
-AND po_number IN s_po.
-
-IF sy-subrc <> 0.
-MESSAGE 'No invoice records found for the given criteria.' TYPE 'S' DISPLAY LIKE 'E'.
-LEAVE LIST-PROCESSING.
-ENDIF.
-ENDFORM.
-
-FORM validate_data.
-LOOP AT it_invoice INTO wa_invoice.
-wa_invoice-qty_diff = wa_invoice-inv_qty - wa_invoice-gr_qty.
-wa_invoice-price_diff = wa_invoice-inv_price - wa_invoice-po_price.
-
-IF wa_invoice-gr_qty = 0.
-wa_invoice-status = 'BLOCKED'.
-ELSEIF wa_invoice-inv_qty > wa_invoice-gr_qty.
-wa_invoice-status = 'BLOCKED'.
-ELSEIF wa_invoice-inv_price <> wa_invoice-po_price.
-wa_invoice-status = 'WARNING'.
-ELSE.
-wa_invoice-status = 'VALID'.
-ENDIF.
-
-MODIFY it_invoice FROM wa_invoice.
-ENDLOOP.
-ENDFORM.
-
-FORM display_alv.
-TRY.
-cl_salv_table=>factory(
-IMPORTING r_salv_table = lo_alv
-CHANGING t_table = it_invoice ).
-
-lo_display = lo_alv->get_display_settings( ).
-lo_display->set_striped_pattern( abap_true ).
-lo_display->set_list_header( 'Smart Invoice Validation Report' ).
-
-lo_functions = lo_alv->get_functions( ).
-lo_functions->set_all( abap_true ).
-
-lo_columns = lo_alv->get_columns( ).
-lo_columns->set_optimize( abap_true ).
-
-lo_alv->display( ).
-CATCH cx_salv_msg INTO lx_msg.
-MESSAGE lx_msg->get_text( ) TYPE 'E'.
-ENDTRY.
-ENDFORM.
+ELSE                                 "All checks passed
+  → STATUS = 'VALID'
+ENDIF
 ```
 
-## 6. Database Table Definition — `ZINV_VALIDATION`
+### Program Flow
 
-| Field Name | Type | Length | Key | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| INV_ID | CHAR | 10 | YES | Invoice ID (Primary Key) |
-| VENDOR_ID | CHAR | 10 | NO | Vendor Identifier |
-| PO_NUMBER | CHAR | 10 | NO | Purchase Order Number |
-| PO_QTY | INT | 10 | NO | Purchase Order Quantity |
-| GR_QTY | INT | 10 | NO | Goods Receipt Quantity |
-| INV_QTY | INT | 10 | NO | Invoice Quantity |
-| PO_PRICE | CURR | 13,2 | NO | Purchase Order Unit Price |
-| INV_PRICE | CURR | 13,2 | NO | Invoice Unit Price |
-| QTY_DIFF | INT | 10 | NO | Computed: INV_QTY - GR_QTY |
-| PRICE_DIFF | CURR | 13,2 | NO | Computed: INV_PRICE - PO_PRICE |
-| STATUS | CHAR | 10 | NO | VALID / WARNING / BLOCKED |
-| CURRENCY | CUKY | 5 | NO | Currency Key (INR) |
+```
+User runs ZSMART_INVOICE_VALIDATION (SE38)
+           │
+           ▼
+    Selection Screen
+    (Invoice ID / Vendor / PO / Status filter)
+           │
+           ▼
+     FORM fetch_data
+    SELECT from ZINV_VALIDATION
+           │
+           ▼
+    FORM validate_data
+    ├── Compute QTY_DIFF  = INV_QTY  − GR_QTY
+    ├── Compute PRICE_DIFF = INV_PRICE − PO_PRICE
+    └── Assign STATUS: BLOCKED / WARNING / VALID
+           │
+           ▼
+     FORM display_alv
+    CL_SALV_TABLE → ALV Grid Output
+    (Sort / Filter / Excel Export)
+```
 
-**Technical Settings:** Data Class — APPL0 | Size Category — 0 | Buffering — Not Allowed
+---
 
-## 7. Test Cases & Expected Output
-Five test scenarios were designed to exercise all branches of the validation logic. Each record in the `ZINV_VALIDATION` table corresponds to one scenario.
+## 🔧 Tech Stack
 
-| Invoice | PO Qty | GR Qty | Inv Qty | PO Price | Inv Price | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| INV001 | 100 | 100 | 100 | ₹500 | ₹500 | **VALID** |
-| INV002 | 50 | 30 | 50 | ₹45,000 | ₹45,000 | **BLOCKED** |
-| INV003 | 200 | 200 | 200 | ₹150 | ₹175 | **WARNING** |
-| INV004 | 5 | 0 | 5 | ₹2,00,000 | ₹2,00,000 | **BLOCKED** |
-| INV005 | 20 | 15 | 15 | ₹8,000 | ₹8,000 | **VALID** |
+| Component | Detail |
+|-----------|--------|
+| **Language** | ABAP (Advanced Business Application Programming) |
+| **Platform** | SAP NetWeaver / SAP S/4HANA |
+| **UI Framework** | `CL_SALV_TABLE` — Object-Oriented ALV Grid |
+| **Database Table** | `ZINV_VALIDATION` — Custom Transparent Z-Table |
+| **Development Transactions** | SE11, SE38, SE16, SA38, SM30 |
+| **Export** | Excel (`.xlsx`) via ALV built-in toolbar |
+| **Compatibility** | SAP ECC 6.0 / S/4HANA |
 
-- **INV001 — VALID:** All three quantities match and price equals PO price. Invoice is cleared for FI posting.
-- **INV002 — BLOCKED:** Invoice quantity (50) exceeds GR quantity (30). Vendor is billing for 20 units that were never received. Payment blocked.
-- **INV003 — WARNING:** Quantities match but invoice price (₹175) is higher than PO price (₹150). Excess of ₹25/unit flagged for AP review.
-- **INV004 — BLOCKED:** GR quantity is 0 — goods have not been received. Invoice cannot be processed without delivery confirmation.
-- **INV005 — VALID:** Partial delivery scenario. GR qty = 15 (partial of PO qty 20). Invoice correctly raised for 15 units only. Validated successfully.
+---
 
-## 8. Unique Points
-1. **Real-World Business Logic:** Implements genuine SAP 3-way matching — the same logic used in SAP MM-FI integration in production systems. Unlike basic CRUD projects, this validates quantity AND price across three document types simultaneously.
-2. **Custom Validation Layer Before FI Posting:** The program acts as a pre-posting gateway, mimicking how SAP blocks invoices in a real AP workflow. This demonstrates understanding of the full P2P cycle.
-3. **Modern OOP ALV (CL_SALV_TABLE):** Uses the object-oriented ALV class instead of older function module-based ALV, reflecting current SAP development best practices.
-4. **Computed Difference Fields:** Automatically calculates Quantity Difference (INV_QTY - GR_QTY) and Price Difference (INV_PRICE - PO_PRICE) to give AP teams instant visibility into the magnitude of discrepancies.
-5. **Multi-Scenario Test Coverage:** Five distinct test cases cover all code branches: valid match, qty overbilling, price inflation, missing GR, and partial delivery — ensuring complete validation of the program logic.
+## 🗄️ Database Table — `ZINV_VALIDATION`
 
-## 9. Future Improvements
-- **Real SAP Table Integration:** Connect to live EKKO, EKPO, MSEG, RBKP, RSEG tables instead of the Z-table simulation, enabling deployment in a production SAP environment.
-- **Tolerance-Based Matching:** Allow configurable price tolerance (e.g., ±2%) so minor rounding differences do not trigger unnecessary WARNING statuses.
-- **Workflow Integration:** Route WARNING status invoices to an SAP workflow (WS-based) for AP manager approval before FI posting.
-- **Email Notification:** Auto-send email alerts to the Accounts Payable team when BLOCKED invoices are detected, using SAP Business Workplace (SBWP).
-- **SAP Fiori Dashboard:** Build a SAPUI5/Fiori front-end to visualize invoice validation statistics — total invoices, blocked count, warning rate — as a management dashboard.
-- **Audit Log:** Record every validation run with timestamp and user ID in a separate log Z-table for compliance and traceability.
+> Create in transaction **SE11** as a Transparent Table.
+
+| Field | Type | Length | Key | Description |
+|-------|------|--------|-----|-------------|
+| `INV_ID` | CHAR | 20 | ✅ | Invoice Number — Primary Key |
+| `VENDOR_ID` | CHAR | 20 | | Vendor Identifier |
+| `PO_ID` | CHAR | 20 | | Purchase Order Number |
+| `MATERIAL` | CHAR | 40 | | Material Description |
+| `PO_QTY` | QUAN | 13 | | Purchase Order Quantity |
+| `GR_QTY` | QUAN | 13 | | Goods Receipt Quantity |
+| `INV_QTY` | QUAN | 13 | | Invoice Quantity |
+| `PO_PRICE` | CURR | 15 | | PO Unit Price |
+| `INV_PRICE` | CURR | 15 | | Invoice Unit Price |
+| `QTY_DIFF` | QUAN | 13 | | Computed: `INV_QTY − GR_QTY` |
+| `PRICE_DIFF` | CURR | 15 | | Computed: `INV_PRICE − PO_PRICE` |
+| `STATUS` | CHAR | 10 | | `VALID` / `WARNING` / `BLOCKED` |
+| `MESSAGE` | CHAR | 100 | | Validation message text |
+| `CURRENCY` | CUKY | 5 | | Currency Key (e.g. INR) |
+| `CREATED_ON` | DATS | 8 | | Record creation date |
+
+**Technical Settings:** Data Class `APPL0` · Size Category `0` · Buffering: Not Allowed
+
+---
+
+## 🧩 Program Structure
+
+The main program `ZSMART_INVOICE_VALIDATION` is split into three modular FORMs:
+
+```
+ZSMART_INVOICE_VALIDATION
+│
+├── FORM fetch_data
+│     SELECT from ZINV_VALIDATION using selection screen filters
+│     Handles no-data scenario with warning message
+│
+├── FORM validate_data
+│     Computes QTY_DIFF and PRICE_DIFF per record
+│     Applies 3-way matching logic → assigns STATUS + MESSAGE
+│     Filters results by p_status (ALL / VALID / WARNING / BLOCKED)
+│
+└── FORM display_alv
+      Initialises CL_SALV_TABLE
+      Sets striped pattern, report header, all toolbar functions
+      Configures column labels and layout save/restore
+      Calls lo_alv->display()
+```
+
+---
+
+## 🧪 Test Cases
+
+Five scenarios covering every branch of the validation logic:
+
+| Invoice | PO Qty | GR Qty | Inv Qty | PO Price | Inv Price | Expected | Reason |
+|---------|--------|--------|---------|----------|-----------|----------|--------|
+| `INV001` | 100 | 100 | 100 | 500 | 500 | ✅ VALID | Perfect 3-way match |
+| `INV002` | 50 | 30 | 50 | 45,000 | 45,000 | 🔴 BLOCKED | Inv qty (50) > GR qty (30) |
+| `INV003` | 200 | 200 | 200 | 150 | 175 | 🟡 WARNING | Price mismatch — ₹25/unit excess |
+| `INV004` | 5 | 0 | 5 | 2,00,000 | 2,00,000 | 🔴 BLOCKED | No Goods Receipt (GR = 0) |
+| `INV005` | 20 | 15 | 15 | 8,000 | 8,000 | ✅ VALID | Partial delivery, correctly invoiced |
+
+---
+
+## 🚀 Getting Started
+
+### Step 1 — Create the Database Table (SE11)
+
+```
+SE11 → Database Table → Enter: ZINV_VALIDATION → Create
+Add all 15 fields as listed in the Database Table section above
+Set CURR field references: PO_PRICE, INV_PRICE, PRICE_DIFF → ref field: CURRENCY
+Set QUAN field references: PO_QTY, GR_QTY, INV_QTY, QTY_DIFF → ref field: MEINS
+Technical Settings: Data Class = APPL0, Size Category = 0
+Activate (Ctrl+F3)
+```
+
+### Step 2 — Load Test Data (SE38)
+
+```
+SE38 → Create program: ZLOAD_INV_TEST_DATA
+Paste Section 2 from ABAP_Code/ZSMART_INVOICE_VALIDATION.abap
+Activate → Execute (F8)
+Expected output: "Test data loaded successfully. Records: 5"
+```
+
+Alternatively, insert records manually via **SE16** using `Sample_Data/Test_Data_SE16.txt`.
+
+### Step 3 — Run the Main Program (SE38)
+
+```
+SE38 → Create program: ZSMART_INVOICE_VALIDATION
+Paste Section 3 from ABAP_Code/ZSMART_INVOICE_VALIDATION.abap
+Activate (Ctrl+F3) → Execute (F8)
+```
+
+### Step 4 — Test the Scenarios
+
+| Filter | Input | Expected Result |
+|--------|-------|----------------|
+| Default (all) | INV001–INV010 | All 5 records, mixed statuses |
+| By status | `BLOCKED` | INV002, INV004 only |
+| By status | `WARNING` | INV003 only |
+| By status | `VALID` | INV001, INV005 only |
+| By vendor | `VEND_001` | INV001, INV003 only |
+| Invalid ID | `INV999` | Warning: No records found |
+
+---
+
+## 📁 Project Structure
+
+```
+SmartInvoiceValidation/
+│
+├── ABAP_Code/
+│   └── ZSMART_INVOICE_VALIDATION.abap
+│       ├── Section 1 — ZINV_VALIDATION table definition (SE11 reference)
+│       ├── Section 2 — Test data loader (ZLOAD_INV_TEST_DATA)
+│       └── Section 3 — Main validation program
+│
+├── Sample_Data/
+│   └── Test_Data_SE16.txt            ← Manual SE16 insertion guide + all 5 records
+│
+├── Screenshots_Placeholder/
+│   └── SCREENSHOTS_GUIDE.txt         ← Guide for 8 SAP screenshots to capture
+│
+├── docs/
+│   └── SmartInvoiceValidation_Report.docx   ← Full project report
+│
+├── PROJECT_DOCUMENTATION_Content.txt ← Copy-paste ready report content
+└── README.md
+```
+
+---
+
+## 🔮 Future Improvements
+
+- [ ] **Live SAP table integration** — replace Z-table simulation with real `EKKO`, `EKPO`, `MSEG`, `RBKP`, `RSEG` tables
+- [ ] **Tolerance-based matching** — configurable price variance threshold (e.g. ±2%) to reduce false warnings
+- [ ] **SAP Workflow integration** — route `WARNING` invoices to an AP manager approval step via WS-based workflow
+- [ ] **Email notifications** — alert the Accounts Payable team on `BLOCKED` invoices via SAP Business Workplace (SBWP)
+- [ ] **Fiori / SAPUI5 dashboard** — management-level KPI view showing total, blocked, and warning invoice counts
+- [ ] **Audit log table** — record every validation run (timestamp, user, result) in a dedicated log Z-table for compliance
+
+---
+
+## 📄 License
+
+This project is open for academic and learning purposes.
+Feel free to use, adapt, or extend it for your own SAP ABAP training projects.
